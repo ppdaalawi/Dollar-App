@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detail Pengeluaran</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body{
+    margin:0;
+    font-family:Inter,sans-serif;
+    background:#f1f5f9;
+}
+input, select, textarea, button{box-sizing:border-box}
+
+/* HEADER */
+.header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 20px;
+}
+.header-left{display:flex;align-items:center;gap:12px}
+.back{font-size:22px;cursor:pointer}
+.header h2{margin:0;font-size:24px}
+.download-btn{
+    background:#22c55e;color:#fff;border:none;
+    padding:8px 14px;border-radius:12px;
+    font-size:14px;font-weight:600;cursor:pointer
+}
+
+/* CONTAINER */
+.container{padding:20px;max-width:560px;margin:auto}
+
+/* SUMMARY */
+.summary{
+    background:#fff;border-radius:22px;padding:20px;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);
+    margin-bottom:22px
+}
+.summary-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:17px}
+.summary-row.in strong{color:#16a34a}
+.summary-row.out strong{color:#dc2626}
+.summary-row.total{font-size:18px;margin-top:12px}
+
+/* INPUT */
+.input-card{
+    background:#fff;border-radius:22px;padding:22px;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);
+    margin-bottom:20px
+}
+.row{display:flex;gap:12px;margin-bottom:14px}
+.row input,.row select{
+    flex:1;height:50px;padding:0 14px;
+    border-radius:14px;border:1px solid #d1d5db;
+    font-size:16px
+}
+.input-card input{
+    width:100%;height:52px;padding:0 16px;
+    border-radius:14px;border:1px solid #d1d5db;
+    margin-bottom:14px;font-size:16px
+}
+.add-btn{
+    width:100%;height:52px;border:none;
+    border-radius:14px;background:#22c55e;
+    color:white;font-weight:600;font-size:16px
+}
+.toggle{text-align:center;font-size:15px;color:#2563eb;cursor:pointer;margin-bottom:14px}
+
+/* LIST */
+.list{display:flex;flex-direction:column;gap:16px}
+.item{
+    background:#fff;border-radius:18px;
+    padding:18px;box-shadow:0 6px 18px rgba(0,0,0,.08);
+    display:flex;justify-content:space-between
+}
+.item.in{border-left:6px solid #22c55e}
+.item.out{border-left:6px solid #ef4444}
+.item h4{margin:0 0 6px;font-size:18px}
+.item small{color:#64748b;font-size:14px}
+.amount{font-weight:600;font-size:17px;text-align:right}
+.amount.in{color:#16a34a}
+.amount.out{color:#dc2626}
+
+/* ACTION BUTTON */
+.item-actions{
+    margin-top:8px;
+    display:flex;
+    gap:12px;
+    justify-content:flex-end
+}
+.item-actions button{
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600
+}
+.btn-edit{color:#2563eb}
+.btn-delete{color:#dc2626}
+
+/* MODAL */
+.modal{
+    position:fixed;inset:0;padding:20px;
+    background:rgba(0,0,0,.45);
+    backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;
+    z-index:100
+}
+.modal.show{display:flex}
+.modal-box{
+    background:#fff;border-radius:22px;
+    padding:22px;width:100%;max-width:360px
+}
+.modal-box input,.modal-box select{
+    width:100%;height:48px;
+    border-radius:14px;border:1px solid #d1d5db;
+    padding:0 14px;font-size:16px;margin-bottom:12px
+}
+.modal-actions{display:flex;gap:12px;margin-top:14px}
+.modal-actions button{
+    flex:1;height:48px;border:none;
+    border-radius:14px;font-weight:600
+}
+.btn-cancel{background:#e5e7eb}
+.btn-save{background:#22c55e;color:white}
+
+/* TOAST */
+.toast{
+    position:fixed;top:-80px;left:50%;
+    transform:translateX(-50%);
+    background:#111827;color:white;
+    padding:14px 22px;border-radius:16px;
+    font-weight:600;transition:.4s;z-index:200
+}
+.toast.show{top:25px}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="back" onclick="history.back()">←</div>
+    <h2 id="pageTitle">Data</h2>
+  </div>
+  <button class="download-btn" onclick="downloadData()">Unduh</button>
+</div>
+
+<div class="container">
+  <div class="summary">
+    <div class="summary-row in"><span>Pemasukan</span><strong id="totalIn">Rp 0</strong></div>
+    <div class="summary-row out"><span>Pengeluaran</span><strong id="totalOut">Rp 0</strong></div>
+    <div class="summary-row total"><span>Saldo</span><strong id="saldo">Rp 0</strong></div>
+  </div>
+
+  <div class="toggle" onclick="toggleInput()">Tampilkan / Sembunyikan Input</div>
+
+  <div id="inputCard" class="input-card">
+    <div class="row">
+      <input type="date" id="dateInput">
+      <select id="typeInput">
+        <option value="out">Pengeluaran</option>
+        <option value="in">Pemasukan</option>
+      </select>
+    </div>
+
+    <input id="nameInput" placeholder="Nama" autocapitalize="words">
+    <input id="amountInput" type="number" placeholder="Nominal">
+    <button class="add-btn" onclick="addItem()">Tambah</button>
+  </div>
+
+  <div id="list" class="list"></div>
+</div>
+
+<!-- MODAL DOWNLOAD -->
+<div id="downloadModal" class="modal">
+  <div class="modal-box">
+    <h3>Unduh Data</h3>
+    <input id="fileNameInput">
+    <select id="fileTypeInput">
+      <option value="txt">TXT (.txt)</option>
+      <option value="xlsx">Excel (.xlsx)</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDownload()">Batal</button>
+      <button class="btn-save" onclick="confirmDownload()">Unduh</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT -->
+<div id="editModal" class="modal">
+  <div class="modal-box">
+    <h3>Edit Data</h3>
+    <input id="editName">
+    <input id="editAmount" type="number">
+    <select id="editType">
+      <option value="out">Pengeluaran</option>
+      <option value="in">Pemasukan</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEdit()">Batal</button>
+      <button class="btn-save" onclick="saveEdit()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DELETE -->
+<div id="deleteModal" class="modal">
+  <div class="modal-box">
+    <h3>Hapus Data?</h3>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDelete()">Batal</button>
+      <button class="btn-save" style="background:#dc2626" onclick="confirmDelete()">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import {
+ auth, db, onAuthStateChanged,
+ collection, addDoc, getDocs,
+ doc, getDoc, updateDoc, deleteDoc
+} from "./firebase.js";
+
+const params=new URLSearchParams(location.search);
+const eventId=params.get("id");
+dateInput.value=new Date().toISOString().split("T")[0];
+
+let cachedItems=[], cachedDocs=[], selectedIndex=null;
+
+function formatRp(n){
+ return "Rp "+n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".");
+}
+
+onAuthStateChanged(auth,async user=>{
+ if(!user) return location.href="index.html";
+ const snap=await getDoc(doc(db,"events",user.uid,"list",eventId));
+ pageTitle.textContent=snap.data().title;
+ loadItems(user.uid);
+});
+
+async function loadItems(uid){
+ list.innerHTML="";
+ let tin=0,tout=0;
+ const q=await getDocs(collection(db,"events",uid,"list",eventId,"items"));
+ cachedItems=[]; cachedDocs=[];
+ q.forEach(d=>{cachedItems.push(d.data());cachedDocs.push(d)});
+ cachedItems.sort((a,b)=>a.created-b.created);
+ cachedDocs.sort((a,b)=>a.data().created-b.data().created);
+
+ cachedItems.forEach((d,i)=>{
+  d.type==="in"?tin+=d.amount:tout+=d.amount;
+  list.innerHTML+=`
+  <div class="item ${d.type}">
+    <div>
+      <h4>${i+1}. ${d.name}</h4>
+      <small>${d.date}</small>
+    </div>
+    <div>
+      <div class="amount ${d.type}">
+        ${d.type==="out"?"-":"+"} ${formatRp(d.amount)}
+      </div>
+      <div class="item-actions">
+        <button class="btn-edit" onclick="openEdit(${i})">Edit</button>
+        <button class="btn-delete" onclick="openDelete(${i})">Hapus</button>
+      </div>
+    </div>
+  </div>`;
+ });
+
+ totalIn.textContent=formatRp(tin);
+ totalOut.textContent=formatRp(tout);
+ saldo.textContent=formatRp(tin-tout);
+}
+
+window.addItem=async()=>{
+ if(!nameInput.value||!amountInput.value) return toast("Lengkapi data");
+ await addDoc(collection(db,"events",auth.currentUser.uid,"list",eventId,"items"),{
+  name:nameInput.value,
+  amount:+amountInput.value,
+  date:dateInput.value,
+  type:typeInput.value,
+  created:Date.now()
+ });
+ nameInput.value="";amountInput.value="";
+ loadItems(auth.currentUser.uid);
+ toast("Data ditambahkan");
+};
+
+window.toggleInput=()=>inputCard.style.display=inputCard.style.display==="none"?"block":"none";
+
+window.downloadData=()=>{
+ fileNameInput.value=pageTitle.textContent;
+ downloadModal.classList.add("show");
+};
+window.closeDownload=()=>downloadModal.classList.remove("show");
+
+window.confirmDownload=()=>{
+ const name=fileNameInput.value.trim();
+ if(!name) return toast("Nama file wajib diisi");
+ fileTypeInput.value==="txt"?generateTXT(name):generateXLSX(name);
+ closeDownload();toast("File diunduh");
+};
+
+window.openEdit=i=>{
+ selectedIndex=i;
+ editName.value=cachedItems[i].name;
+ editAmount.value=cachedItems[i].amount;
+ editType.value=cachedItems[i].type;
+ editModal.classList.add("show");
+};
+window.closeEdit=()=>editModal.classList.remove("show");
+
+window.saveEdit=async()=>{
+ await updateDoc(cachedDocs[selectedIndex].ref,{
+  name:editName.value,
+  amount:+editAmount.value,
+  type:editType.value
+ });
+ closeEdit();loadItems(auth.currentUser.uid);
+ toast("Data diperbarui");
+};
+
+window.openDelete=i=>{selectedIndex=i;deleteModal.classList.add("show")};
+window.closeDelete=()=>deleteModal.classList.remove("show");
+
+window.confirmDelete=async()=>{
+ await deleteDoc(cachedDocs[selectedIndex].ref);
+ closeDelete();loadItems(auth.currentUser.uid);
+ toast("Data dihapus");
+};
+
+const toastEl=document.getElementById("toast");
+function toast(m){
+ toastEl.textContent=m;
+ toastEl.classList.add("show");
+ setTimeout(()=>toastEl.classList.remove("show"),2500);
+}
+
+/* ===== ENTER FLOW INPUT ===== */
+nameInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    amountInput.focus();
+  }
+});
+
+amountInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addItem();
+    nameInput.focus();
+  }
+});
+/* ===== GENERATE TXT ===== */
+function generateTXT(filename){
+ let saldo = 0;
+ let tin = 0;
+ let tout = 0;
+
+ let text = `${pageTitle.textContent}\n`;
+ text += "===============================\n\n";
+
+ cachedItems.forEach((d,i)=>{
+  let line = `${i+1}. ${d.date}\n`;
+  line += `   Keterangan : ${d.name}\n`;
+
+  if(d.type==="in"){
+    saldo += d.amount;
+    tin += d.amount;
+    line += `   Pemasukan  : ${formatRp(d.amount)}\n`;
+  }else{
+    saldo -= d.amount;
+    tout += d.amount;
+    line += `   Pengeluaran: ${formatRp(d.amount)}\n`;
+  }
+
+  line += `   Saldo      : ${formatRp(saldo)}\n`;
+  line += "-------------------------------\n";
+
+  text += line;
+ });
+
+ text += "\nRINGKASAN\n";
+ text += "===============================\n";
+ text += `Total Pemasukan   : ${formatRp(tin)}\n`;
+ text += `Total Pengeluaran : ${formatRp(tout)}\n`;
+ text += `Saldo Akhir       : ${formatRp(tin - tout)}\n`;
+
+ const blob = new Blob([text],{type:"text/plain"});
+ const a = document.createElement("a");
+ a.href = URL.createObjectURL(blob);
+ a.download = filename+".txt";
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+
+/* ===== GENERATE XLSX ===== */
+function generateXLSX(filename){
+ let saldo = 0;
+ let tin = 0;
+ let tout = 0;
+
+ const title = pageTitle.textContent.toUpperCase();
+
+ const wsData = [
+  [title, "", "", "", "", ""], // A1 HARUS ADA ISI
+  ["No","Tgl","Keterangan","Pemasukan","Pengeluaran","Saldo"]
+ ];
+
+ cachedItems.forEach((d,i)=>{
+  let pemasukan = "";
+  let pengeluaran = "";
+
+  if(d.type==="in"){
+    pemasukan = d.amount;
+    saldo += d.amount;
+    tin += d.amount;
+  }else{
+    pengeluaran = d.amount;
+    saldo -= d.amount;
+    tout += d.amount;
+  }
+
+  wsData.push([
+    i+1,
+    d.date,
+    d.name,
+    pemasukan,
+    pengeluaran,
+    saldo
+  ]);
+ });
+
+ wsData.push([
+  "",
+  "",
+  "Total",
+  tin,
+  tout,
+  tin - tout
+ ]);
+
+ const wb = XLSX.utils.book_new();
+ const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+ // MERGE JUDUL
+ ws["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:5} }];
+
+ // WIDTH
+ ws["!cols"] = [
+  {wch:5},
+  {wch:14},
+  {wch:30},
+  {wch:16},
+  {wch:18},
+  {wch:16}
+ ];
+
+ // STYLE
+ const range = XLSX.utils.decode_range(ws["!ref"]);
+
+ for(let R=0; R<=range.e.r; R++){
+  for(let C=0; C<=range.e.c; C++){
+   const cell = ws[XLSX.utils.encode_cell({r:R,c:C})];
+   if(!cell) continue;
+
+   // JUDUL
+   if(R===0){
+    cell.s = {
+     font:{bold:true,sz:16},
+     alignment:{horizontal:"center",vertical:"center"}
+    };
+   }
+
+   // HEADER
+   if(R===1){
+    cell.s = {
+     font:{bold:true},
+     alignment:{horizontal:"center"}
+    };
+   }
+
+   // NO CENTER
+   if(C===0 && R>1){
+    cell.s = { alignment:{horizontal:"center"} };
+   }
+
+   // FORMAT ANGKA
+   if(["D","E","F"].includes(XLSX.utils.encode_col(C)) && typeof cell.v==="number"){
+    cell.t="n";
+    cell.z="#,##0";
+   }
+
+   // TOTAL
+   if(R===range.e.r){
+    cell.s = { font:{bold:true} };
+   }
+  }
+ }
+
+ XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+ XLSX.writeFile(wb, filename + ".xlsx");
+}
+</script>
+
+</body>
+</html> 
