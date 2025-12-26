@@ -49,7 +49,8 @@ body{
 /* GRID */
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  /* PERUBAHAN DISINI: Dari repeat(auto-fit...) menjadi 1fr agar full width ke bawah */
+  grid-template-columns: 1fr;
   gap:14px;
 }
 
@@ -186,8 +187,11 @@ body{
   z-index:300;
 }
 
+/* PERUBAHAN MEDIA QUERY: Agar di layar besar juga tetap full width */
 @media(min-width:768px){
-  .grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .grid{grid-template-columns: 1fr;}
+  /* Opsional: Batasi lebar container di desktop agar tidak terlalu lebar */
+  .container { max-width: 800px; margin: 0 auto; }
 }
 </style>
 </head>
@@ -220,7 +224,7 @@ body{
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Hapus data ini?</h3>
 
-    <!-- TAMBAHAN -->
+    <!-- KONFIRMASI HAPUS -->
     <input id="confirmDeleteInput" placeholder="Ketik yes untuk hapus">
 
     <button class="btn-red" onclick="confirmDelete()">Hapus</button>
@@ -374,7 +378,7 @@ window.confirmEdit=async()=>{
 /* DELETE */
 window.openDelete=id=>{
   deleteId=id;
-  confirmDeleteInput.value="";   // TAMBAHAN
+  confirmDeleteInput.value="";   // Reset input
   deleteModal.style.display="flex";
 };
 window.closeDelete=()=>deleteModal.style.display="none";
